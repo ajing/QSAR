@@ -3,7 +3,7 @@ library(caret)
 #corrplot: the library to compute correlation matrix.
 
 qsar <- read.table("QSAR data2.csv", header = TRUE, sep = ",")
-qsar_no_na <- qsar[, colSums(is.na(qsar)) != nrow(qsar)]
+qsar_no_na <- qsar[, colSums(!is.na(qsar)) == nrow(qsar)]
 #read the tab file using the read table function.
 
 qsar.scale<- scale(qsar_no_na,center=TRUE,scale=TRUE);
@@ -30,8 +30,34 @@ dev.off()
 ################## For those descriptor with high correlation  to Ct and Cp
 qsar.scale_no_na <- qsar.scale[, colSums(is.na(qsar.scale)) != nrow(qsar.scale)]
 cor_qsar <- cor(qsar.scale_no_na, use = "complete.obs")
-col_desc <- rownames(cor_qsar)[rowSums(abs(cor_qsar[,c("Cp1", "Cp6", "Ct1", "Cp6")]) > 0.4) > 1]
+col_desc <- rownames(cor_qsar)[rowSums(abs(cor_qsar[,c("Cp1", "Cp6", "Ct1", "Cp6", "Ratio1", "Ratio6")]) > 0.4) > 1]
 
 pdf("cor_sel.pdf")
 corrplot.mixed(cor_qsar[col_desc, col_desc], order = "hclust", tl.cex = 0.7)
 dev.off()
+
+
+cor.mtest <- function(mat, conf.level = 0.95) {
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat <- lowCI.mat <- uppCI.mat <- matrix(NA, n, n)
+  diag(p.mat) <- 0
+  diag(lowCI.mat) <- diag(uppCI.mat) <- 1
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      tmp <- cor.test(mat[, i], mat[, j], conf.level = conf.level)
+      p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+      lowCI.mat[i, j] <- lowCI.mat[j, i] <- tmp$conf.int[1]
+      uppCI.mat[i, j] <- uppCI.mat[j, i] <- tmp$conf.int[2]
+    }
+  }
+  return(list(p.mat, lowCI.mat, uppCI.mat))
+}
+
+res1 <- cor.mtest(cor_qsar[col_desc, col_desc], 0.95)
+#res2 <- cor.mtest(mtcars, 0.99)
+## specialized the insignificant value according to the significant level
+pdf("cor_sig.pdf")
+corrplot.mixed(cor_qsar[col_desc, col_desc], p.mat = res1[[1]], sig.level = 0.2, order = "hclust", tl.cex = 0.7)
+dev.off()
+
