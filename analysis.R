@@ -61,3 +61,22 @@ pdf("cor_sig.pdf")
 corrplot.mixed(cor_qsar[col_desc, col_desc], p.mat = res1[[1]], sig.level = 0.2, order = "hclust", tl.cex = 0.7)
 dev.off()
 
+
+############## features selection ##############
+library(Boruta)
+important <- Boruta(Ratio6 ~ ., data=data.frame(subset(qsar.scale_no_na, select = c(a_nF, vsurf_DW13, vsurf_ID8, CASA..1, ASA_P, vsurf_HB3, density, vsurf_HB8, vsurf_HB7, Ratio6))),  doTrace = 2, ntree = 30)
+plot(important)
+
+
+important <- Boruta(Ratio6 ~ ., data=data.frame(subset(qsar.scale_no_na, select = c(a_nF, vsurf_DW13, vsurf_ID8, CASA..1, ASA_P, vsurf_HB3, density, vsurf_HB8, vsurf_HB7, Ratio6))),  doTrace = 2, ntree = 30)
+plot(important)
+
+important <- Boruta(Ratio6 ~ ., data=data.frame(cbind(subset(qsar.scale_no_na, select = grep("vsurf", colnames(qsar.scale_no_na))), Ratio6= qsar.scale_no_na[,"Ratio6"])),  doTrace = 2, ntree = 30)
+plot(important, las=2)
+
+important <- Boruta(Ratio1 ~ ., data=data.frame(qsar.scale_no_na), doTrace = 2, ntree = 30)
+plot(important, las=2)
+
+
+lm_model_int <- lm(Ratio1 ~ density:a_nF + density:vsurf_DW13 + density:vsurf_ID8 + density:CASA..1 + density:ASA_P +  density:vsurf_HB3 + density:vsurf_HB8 + density:vsurf_HB7, data = data.frame(qsar))
+summary(lm_model_int)
