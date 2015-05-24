@@ -18,6 +18,9 @@ qsar.scale_no_na <- qsar.scale_no_na[,-nzv]
 cor_qsar <- cor(qsar.scale_no_na, use = "complete.obs")
 #compute the correlation matrix
 
+cor_qsar <- cor(qsar_log, use = "complete.obs")
+#compute the correlation matrix
+
 highlyCorDescr <- findCorrelation(cor_qsar, cutoff = .70)
 filteredDescr <- qsar.scale_no_na[,-highlyCorDescr]
 descrCor2 <- cor(cbind(qsar.scale[,1:4], filteredDescr))
@@ -81,6 +84,9 @@ plot(important, las=2)
 important <- Boruta(Ratio1 ~ ., data=data.frame(qsar.scale_no_na), doTrace = 2, ntree = 30)
 plot(important, las=2)
 
+important <- Boruta(Ct1 ~ ., data=data.frame(qsar.scale[, colSums(!is.na(qsar.scale)) == nrow(qsar.scale)]), doTrace = 2, ntree = 30)
+plot(important, las=2)
+
 
 lm_model_int <- lm(Ratio1 ~ density:a_nF + density:vsurf_DW13 + density:vsurf_ID8 + density:CASA..1 + density:ASA_P +  density:vsurf_HB3 + density:vsurf_HB8 + density:vsurf_HB7, data = data.frame(qsar))
 summary(lm_model_int)
@@ -121,11 +127,12 @@ xgbFit1 <- train(Ratio1 ~ ., data = subset(qsar.scale[,-nzv], select = -Ratio6),
 > max(xgbFit1$results$Rsquared)
 [1] 0.1460117
 
-xgbFit2 <- train(log(Ratio1) ~ ., data = subset(qsar, select = c(vsurf_DW13, vsurf_ID8, CASA..1, ASA_P, vsurf_HB3, density, vsurf_HB8, vsurf_HB7, Ratio1)),
+xgbFit2 <- train(log(Ratio1) ~ ., data = subset(qsar[qsar$Ratio1 > 0, ], select = c(vsurf_DW13, vsurf_ID8, CASA..1, ASA_P, vsurf_HB3, density, vsurf_HB8, vsurf_HB7, Ratio1)),
                  method = modelInfo,
                  tuneGrid = grid,
                  trControl = trainControl(method = 'LOOCV'))
 
+tmp <- lm(Ct1 ~ ., data = subset(qsar, select = c(Ct1, Cp1, vsurf_DW13, vsurf_ID8, CASA..1, ASA_P, vsurf_HB3, density, vsurf_HB8, vsurf_HB7)))
 
 #xgbFinal <- xgboost(param=xgbFit1$finalModel$tuneValue, data = subset(qsar.scale[,-nzv], select = -c(Ratio1, Ratio6)), label = qsar$Ratio1, nrounds = xgbFit1$finalModel$tuneValue$nrounds)
 
@@ -146,3 +153,124 @@ obj <- safs(x = subset(qsar.scale, select = -c(Ratio1, Ratio6)),
             safsControl = ctrl,
             ## Now pass options to `train`
             method = "gbm")
+
+
+
+
+
+
+
+####################################################
+##############  Take Log   ##################
+####################################################
+
+# the number of samples
+n_sample = 35
+
+# take log for Cp Ct
+qsar_log = qsar[1:n_sample, ]
+qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6")] = log(qsar[1:n_sample, c("Ct1", "Cp1", "Ct6", "Cp6")] + 1)
+nzv <- nearZeroVar(qsar_log)
+qsar_log <- qsar_log[,-nzv]
+
+# keep predictor features
+predictors <- qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6", "Ratio1", "Ratio6")]
+
+cor_qsar_all <- cor(qsar_log, use = "complete.obs")
+#compute the correlation matrix
+
+qsar_log <- subset(qsar_log, select=-c(Ct1, Cp1, Ct6, Cp6, Ratio1, Ratio6))
+qsar_log <- qsar_log[, colSums(!is.na(qsar_log)) == nrow(qsar_log)]
+
+cor_qsar <- cor(qsar_log, use = "complete.obs")
+#compute the correlation matrix
+
+#corrplot(cor_qsar, order = "hclust", tl.cex = 0.5)
+
+highlyCorDescr <- findCorrelation(cor_qsar, cutoff = .65)
+filteredDescr <- qsar_log[,-highlyCorDescr]
+descrCor2 <- cor(cbind(predictors, filteredDescr))
+summary(descrCor2[upper.tri(descrCor2)])
+#remove highly correlated features
+
+
+pdf("cor.pdf")
+corrplot(descrCor2, order = "hclust", tl.cex = 0.5)
+dev.off()
+#visualize the matrix, clustering features by correlation index.f
+
+
+
+#1. log(Ct), log(Cp) and other qsar features 的matrix correlation (only training data)
+# done
+
+#2. modeling log(Ct) ~ log(Cp) + other variables (1hour and 6 hour, respectively) (only training data)
+
+#2.1 for 1 hour
+# lasso for feature selection
+y = predictors[,c("Ct1")]
+x = as.matrix(cbind(predictors[,c("Cp1")], qsar_log))
+
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.07)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+
+tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[,c("Ct1", "Cp1")], qsar_log[, selected])))
+summary(tmp_lm)
+
+#2.1 for 6 hour
+# lasso for feature selection
+y = predictors[,c("Ct6")]
+x = as.matrix(cbind(predictors[,c("Cp6")], qsar_log))
+
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.1)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+
+tmp_lm <- lm(Ct6 ~., data = data.frame(cbind(predictors[,c("Ct6", "Cp6")], qsar_log[, selected])))
+summary(tmp_lm)
+
+
+
+#3. predict Ct at 1, 6 hour based on Cp 1 and / or Cp6 + other variables using the model in the step 2. (only test data)
+
+#3.1 for 1 hour
+# lasso for feature selection
+y = predictors[,c("Ct1")]
+x = as.matrix(cbind(predictors[,c("Cp1", "Cp6")], qsar_log))
+
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.08)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+
+tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[,c("Ct1", "Cp1", "Cp6")], qsar_log[, selected])))
+summary(tmp_lm)
+
+#3.1 for 1 hour
+# lasso for feature selection
+y = predictors[,c("Ct6")]
+x = as.matrix(cbind(predictors[,c("Cp1", "Cp6")], qsar_log))
+
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.08)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+
+tmp_lm <- lm(Ct6 ~., data = data.frame(cbind(predictors[,c("Ct6", "Cp1", "Cp6")], qsar_log[, selected])))
+summary(tmp_lm)
+
+
+
+
+#4. The residual between predicted Ct and experimental Ct.
