@@ -1,0 +1,70 @@
+
+R version 3.2.0 (2015-04-16) -- "Full of Ingredients"
+Copyright (C) 2015 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> library(corrplot)
+> library(caret)
+Loading required package: lattice
+Loading required package: ggplot2
+> #corrplot: the library to compute correlation matrix.
+> 
+> qsar <- read.table("QSAR data2.csv", header = TRUE, sep = ",")
+> qsar_no_na <- qsar[, colSums(is.na(qsar)) != nrow(qsar)]
+> #read the tab file using the read table function.
+> 
+> qsar.scale<- scale(qsar_no_na,center=TRUE,scale=TRUE);
+> qsar.scale_no_na <- qsar.scale[, colSums(is.na(qsar.scale)) != nrow(qsar.scale)]
+> qsar.scale_no_na <- qsar.scale_no_na[,-c(1:4)]
+> #scale all the features (from feature 2 bacause feature 1 is the predictor output)
+> 
+> cor_qsar <- cor(qsar.scale_no_na, use = "complete.obs")
+> #compute the correlation matrix
+> 
+> highlyCorDescr <- findCorrelation(cor_qsar, cutoff = .70)
+> filteredDescr <- qsar.scale_no_na[,-highlyCorDescr]
+> descrCor2 <- cor(cbind(qsar.scale[,1:4], filteredDescr))
+> summary(descrCor2[upper.tri(descrCor2)])
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+-0.696300 -0.144700 -0.005593  0.006892  0.155700  0.863900 
+> #remove highly correlated features
+> 
+> 
+> pdf("cor.pdf")
+> corrplot(descrCor2, order = "hclust", tl.cex = 0.5)
+> dev.off()
+null device 
+          1 
+> #visualize the matrix, clustering features by correlation index.f
+> 
+> 
+> ################## For those descriptor with high correlation  to Ct and Cp
+> qsar.scale_no_na <- qsar.scale[, colSums(is.na(qsar.scale)) != nrow(qsar.scale)]
+> cor_qsar <- cor(qsar.scale_no_na, use = "complete.obs")
+> col_desc <- rownames(cor_qsar)[rowSums(abs(cor_qsar[,c("Cp1", "Cp6", "Ct1", "Cp6", "Ratio1")]) > 0.4) > 1]
+> 
+> pdf("cor_sel.pdf")
+> corrplot(cor_qsar[col_desc, col_desc], order = "hclust", tl.cex = 0.7)
+> dev.off()
+null device 
+          1 
+> 
+> proc.time()
+   user  system elapsed 
+  2.274   0.076   2.641 

@@ -156,13 +156,21 @@ obj <- safs(x = subset(qsar.scale, select = -c(Ratio1, Ratio6)),
 
 
 
-
-
+###################################################
+#############  save for GA ####################
+###################################################
+nzv <- nearZeroVar(qsar)
+qsar <- qsar[, -nzv]
+qsar_no_na <- qsar[, colSums(!is.na(qsar)) == nrow(qsar)]
+write.table(qsar_no_na, file = "ga.txt", sep = "\t", row.names = F)
 
 
 ####################################################
 ##############  Take Log   ##################
 ####################################################
+
+
+
 
 # the number of samples
 n_sample = 35
