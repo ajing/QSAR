@@ -30,8 +30,8 @@ dev.off()
 ################## For those descriptor with high correlation  to Ct and Cp
 qsar.scale_no_na <- qsar.scale[, colSums(is.na(qsar.scale)) != nrow(qsar.scale)]
 cor_qsar <- cor(qsar.scale_no_na, use = "complete.obs")
-col_desc <- rownames(cor_qsar)[rowSums(abs(cor_qsar[,c("Cp1", "Cp6", "Ct1", "Cp6")]) > 0.4) > 1]
+col_desc <- rownames(cor_qsar)[rowSums(abs(cor_qsar[,c("Cp1", "Cp6", "Ct1", "Cp6", "Ratio1")]) > 0.4) > 1]
 
 pdf("cor_sel.pdf")
-corrplot.mixed(cor_qsar[col_desc, col_desc], order = "hclust", tl.cex = 0.7)
+corrplot(cor_qsar[col_desc, col_desc], order = "hclust", tl.cex = 0.7)
 dev.off()
