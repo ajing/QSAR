@@ -1,0 +1,65 @@
+---
+title: "basic_vis"
+output: html_document
+---
+
+Load data
+```{r}
+library(corrplot)
+library(caret)
+
+qsar <- read.table("QSARalldata.csv", header = TRUE, sep = ",")
+qsar_no_na <- qsar[, colSums(!is.na(qsar)) == nrow(qsar)]
+
+qsar.scale<- scale(qsar_no_na,center=TRUE,scale=TRUE)
+qsar.scale_no_na <- qsar.scale[, colSums(!is.na(qsar.scale)) == nrow(qsar.scale)]
+
+nzv <- nearZeroVar(qsar.scale_no_na)
+qsar.scale_no_na <- qsar.scale_no_na[,-nzv]
+
+summary(qsar.scale_no_na)
+```
+
+Take log
+```{r}
+# the number of samples
+n_sample = 35
+
+# take log for Cp Ct
+qsar_log = qsar[1:n_sample, ]
+qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6")] = log(qsar[1:n_sample, c("Ct1", "Cp1", "Ct6", "Cp6")] + 1)
+nzv <- nearZeroVar(qsar_log)
+qsar_log <- qsar_log[,-nzv]
+
+# keep predictor features
+predictors <- qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6", "Ratio1", "Ratio6")]
+
+cor_qsar_all <- cor(qsar_log, use = "complete.obs")
+#compute the correlation matrix
+
+qsar_log <- subset(qsar_log, select=-c(Ct1, Cp1, Ct6, Cp6, Ratio1, Ratio6))
+qsar_log <- qsar_log[, colSums(!is.na(qsar_log)) == nrow(qsar_log)]
+```
+
+1 hour
+Feature selection
+```{r}
+# lasso for feature selection
+y = predictors[,c("Ct1")]
+x = as.matrix(cbind(predictors[,c("Cp1")], qsar_log))
+
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.07)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+selected
+```
+
+Build model
+```{r}
+tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[,c("Ct1", "Cp1")], qsar_log[, selected])))
+summary(tmp_lm)
+plot(predict(tmp_lm, newdata = qsar[(n_sample + 1):nrow(qsar), ]), qsar[(n_sample + 1):nrow(qsar), "Ct1"])
+```
