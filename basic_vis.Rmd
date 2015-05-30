@@ -61,5 +61,9 @@ Build model
 ```{r}
 tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[,c("Ct1", "Cp1")], qsar_log[, selected])))
 summary(tmp_lm)
-plot(predict(tmp_lm, newdata = qsar[(n_sample + 1):nrow(qsar), ]), qsar[(n_sample + 1):nrow(qsar), "Ct1"])
+# original data
+plot(x = predict(tmp_lm, newdata = qsar[1:n_sample, ]), y = qsar[1:n_sample, "Ct1"], xlab = "predicted", ylab = "real data")
+
+plot(x = predict(tmp_lm, newdata = qsar[(n_sample + 1):nrow(qsar), ]), y = qsar[(n_sample + 1):nrow(qsar), "Ct1"], xlab = "predicted", ylab = "real data")
+abline(a = 0, b = 1)
 ```
