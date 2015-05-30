@@ -95,14 +95,14 @@ selected
 
 Build model with log
 ```{r}
-tmp_lm <- lm(Ct6 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct6", "Cp6", "Cp1")], qsar_log[1:n_sample, selected])))
+tmp_lm <- lm(Ct6 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct6", "Cp6")], qsar_log[1:n_sample, selected])))
 summary(tmp_lm)
 # original data
 predictors[1:n_sample, "Ct6"]
-plot(x = predict(tmp_lm, newdata = cbind(predictors[1:n_sample, c("Ct6", "Cp6", "Cp1")], qsar_log[1:n_sample, ])), y = predictors[1:n_sample, "Ct6"], xlab = "predicted", ylab = "real data", main = "Training")
+plot(x = predict(tmp_lm, newdata = cbind(predictors[1:n_sample, c("Ct6", "Cp6")], qsar_log[1:n_sample, ])), y = predictors[1:n_sample, "Ct6"], xlab = "predicted", ylab = "real data", main = "Training")
 abline(a = 0, b = 1)
 
-plot(x = predict(tmp_lm, newdata = cbind(predictors[(n_sample + 1):nrow(qsar_log),c("Ct6", "Cp6", "Cp1")], qsar_log[(n_sample + 1):nrow(qsar_log), ])), y = predictors[(n_sample + 1):nrow(qsar_log), "Ct6"], xlab = "predicted", ylab = "real data", main = "Testing")
+plot(x = predict(tmp_lm, newdata = cbind(predictors[(n_sample + 1):nrow(qsar_log),c("Ct6", "Cp6")], qsar_log[(n_sample + 1):nrow(qsar_log), ])), y = predictors[(n_sample + 1):nrow(qsar_log), "Ct6"], xlab = "predicted", ylab = "real data", main = "Testing")
 abline(a = 0, b = 1)
 ```
 
