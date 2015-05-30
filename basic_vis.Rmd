@@ -26,8 +26,9 @@ Take log
 n_sample = 35
 
 # take log for Cp Ct
-qsar_log = qsar[1:n_sample, ]
-qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6")] = log(qsar[1:n_sample, c("Ct1", "Cp1", "Ct6", "Cp6")] + 1)
+qsar_log = qsar
+#qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6")] = log(qsar[, c("Ct1", "Cp1", "Ct6", "Cp6")] + 1)
+qsar_log[, c("Ct1", "Cp1", "Ct6", "Cp6")] = qsar[, c("Ct1", "Cp1", "Ct6", "Cp6")]
 nzv <- nearZeroVar(qsar_log)
 qsar_log <- qsar_log[,-nzv]
 
@@ -46,24 +47,44 @@ Feature selection
 ```{r}
 # lasso for feature selection
 y = predictors[,c("Ct1")]
-x = as.matrix(cbind(predictors[,c("Cp1")], qsar_log))
+x = as.matrix(cbind(Cp1 = predictors[,c("Cp1")], qsar_log))
 
 library(glmnet)
 cvfit <- glmnet(x = scale(x), y = scale(y))
 plot(cvfit)
 selected <- coef(cvfit, s = 0.07)
 selected <- names(selected[,1][selected[,1] > 0])[-1]
-selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7"))]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp1"))]
 selected
+```
+
+Build model with log
+```{r}
+tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct1", "Cp1")], qsar_log[1:n_sample, selected])))
+summary(tmp_lm)
+# original data
+predictors[1:n_sample, "Ct1"]
+plot(x = predict(tmp_lm, newdata = cbind(predictors[1:n_sample, c("Ct1", "Cp1")], qsar_log[1:n_sample, ])), y = predictors[1:n_sample, "Ct1"], xlab = "predicted", ylab = "real data", main = "Training")
+abline(a = 0, b = 1)
+
+plot(x = predict(tmp_lm, newdata = cbind(predictors[(n_sample + 1):nrow(qsar_log),c("Ct1", "Cp1")], qsar_log[(n_sample + 1):nrow(qsar_log), ])), y = predictors[(n_sample + 1):nrow(qsar_log), "Ct1"], xlab = "predicted", ylab = "real data", main = "Testing")
+abline(a = 0, b = 1)
 ```
 
 Build model
 ```{r}
-tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[,c("Ct1", "Cp1")], qsar_log[, selected])))
-summary(tmp_lm)
-# original data
-plot(x = predict(tmp_lm, newdata = qsar[1:n_sample, ]), y = qsar[1:n_sample, "Ct1"], xlab = "predicted", ylab = "real data")
+# lasso for feature selection
+y = predictors[,c("Ct1")]
+x = as.matrix(cbind(Cp1 = predictors[,c("Cp1")], qsar_log))
 
-plot(x = predict(tmp_lm, newdata = qsar[(n_sample + 1):nrow(qsar), ]), y = qsar[(n_sample + 1):nrow(qsar), "Ct1"], xlab = "predicted", ylab = "real data")
-abline(a = 0, b = 1)
+library(glmnet)
+cvfit <- glmnet(x = scale(x), y = scale(y))
+plot(cvfit)
+selected <- coef(cvfit, s = 0.07)
+selected <- names(selected[,1][selected[,1] > 0])[-1]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp1"))]
+selected
+
+tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct1", "Cp1")], qsar_log[1:n_sample, selected])))
 ```
+
