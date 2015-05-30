@@ -17,7 +17,7 @@ qsar.scale_no_na <- qsar.scale[, colSums(!is.na(qsar.scale)) == nrow(qsar.scale)
 nzv <- nearZeroVar(qsar.scale_no_na)
 qsar.scale_no_na <- qsar.scale_no_na[,-nzv]
 
-summary(qsar.scale_no_na)
+#summary(qsar.scale_no_na)
 ```
 
 Take log
@@ -46,19 +46,21 @@ qsar_log <- qsar_log[, colSums(!is.na(qsar_log)) == nrow(qsar_log)]
 Feature selection
 ```{r}
 # lasso for feature selection
+# this might be wrong, but now just keep it as it is (missing 1:n_sample)
 y = predictors[,c("Ct1")]
 x = as.matrix(cbind(Cp1 = predictors[,c("Cp1")], qsar_log))
 
 library(glmnet)
 cvfit <- glmnet(x = scale(x), y = scale(y))
 plot(cvfit)
-selected <- coef(cvfit, s = 0.07)
+# for s = 0.07, with more descriptor, we can get R square 0.78
+selected <- coef(cvfit, s = 0.1)
 selected <- names(selected[,1][selected[,1] > 0])[-1]
-selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp1"))]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp1", "lip_druglike"))]
 selected
 ```
 
-Build model with log
+Build model without log
 ```{r}
 tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct1", "Cp1")], qsar_log[1:n_sample, selected])))
 summary(tmp_lm)
@@ -71,20 +73,36 @@ plot(x = predict(tmp_lm, newdata = cbind(predictors[(n_sample + 1):nrow(qsar_log
 abline(a = 0, b = 1)
 ```
 
-Build model
+
+
+
+
+6 hour
+Feature selection
 ```{r}
 # lasso for feature selection
-y = predictors[,c("Ct1")]
-x = as.matrix(cbind(Cp1 = predictors[,c("Cp1")], qsar_log))
+y = predictors[,c("Ct6")]
+x = as.matrix(cbind(Cp1 = predictors[,c("Cp6")], qsar_log))
 
 library(glmnet)
 cvfit <- glmnet(x = scale(x), y = scale(y))
 plot(cvfit)
-selected <- coef(cvfit, s = 0.07)
+selected <- coef(cvfit, s = 0.1)
 selected <- names(selected[,1][selected[,1] > 0])[-1]
-selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp1"))]
+selected <- selected[!(selected %in% c("ast_violation_ext", "lip_don", "vsurf_CW3", "vsurf_W7", "Cp6", "Cp1", "lip_druglike"))]
 selected
+```
 
-tmp_lm <- lm(Ct1 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct1", "Cp1")], qsar_log[1:n_sample, selected])))
+Build model with log
+```{r}
+tmp_lm <- lm(Ct6 ~., data = data.frame(cbind(predictors[1:n_sample,c("Ct6", "Cp6", "Cp1")], qsar_log[1:n_sample, selected])))
+summary(tmp_lm)
+# original data
+predictors[1:n_sample, "Ct6"]
+plot(x = predict(tmp_lm, newdata = cbind(predictors[1:n_sample, c("Ct6", "Cp6", "Cp1")], qsar_log[1:n_sample, ])), y = predictors[1:n_sample, "Ct6"], xlab = "predicted", ylab = "real data", main = "Training")
+abline(a = 0, b = 1)
+
+plot(x = predict(tmp_lm, newdata = cbind(predictors[(n_sample + 1):nrow(qsar_log),c("Ct6", "Cp6", "Cp1")], qsar_log[(n_sample + 1):nrow(qsar_log), ])), y = predictors[(n_sample + 1):nrow(qsar_log), "Ct6"], xlab = "predicted", ylab = "real data", main = "Testing")
+abline(a = 0, b = 1)
 ```
 
